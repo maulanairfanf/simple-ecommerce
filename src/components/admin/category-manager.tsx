@@ -1,10 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PencilSimple, Plus, Trash } from "@phosphor-icons/react";
+import { Archive, ArrowCounterClockwise, PencilSimple, Plus } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { AdminActionGroup, AdminButton } from "@/components/admin/admin-action";
+import { AdminConfirmDialog } from "@/components/admin/admin-confirm-dialog";
+import { useAdminToast } from "@/components/admin/admin-toast";
 import { services } from "@/lib/api";
 import type { AdminCategory } from "@/lib/types/admin";
 
@@ -15,25 +18,42 @@ const schema = z.object({
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens."),
   description: z.string().min(8, "Description needs at least 8 characters."),
   imageUrl: z.string().url("Enter a valid image URL.").or(z.literal("")),
-  active: z.boolean(),
 });
 type Values = z.infer<typeof schema>;
-const defaults: Values = { name: "", slug: "", description: "", imageUrl: "", active: true };
+const defaults: Values = { name: "", slug: "", description: "", imageUrl: "" };
 
 export function CategoryManager() {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [editing, setEditing] = useState<AdminCategory | null>(null);
-  const [message, setMessage] = useState("");
+  const [archiveTarget, setArchiveTarget] = useState<AdminCategory | null>(null);
+  const [unarchiveTarget, setUnarchiveTarget] = useState<AdminCategory | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const { notify } = useAdminToast();
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: defaults });
-  const load = () => services.admin.categories.list().then(setCategories);
   useEffect(() => {
-    load();
-  }, []);
+    let cancelled = false;
+    const load = async () => {
+      setIsLoading(true);
+      try {
+        const result = await services.admin.categories.list();
+        if (!cancelled) setCategories(result);
+      } catch {
+        if (!cancelled) notify("Categories could not be loaded. Try again.", "error");
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [notify, refreshKey]);
   const edit = (category: AdminCategory) => {
     setEditing(category);
     reset({
@@ -41,27 +61,38 @@ export function CategoryManager() {
       slug: category.slug,
       description: category.description,
       imageUrl: category.imageUrl ?? "",
-      active: category.active,
     });
   };
   const submit = async (values: Values) => {
-    const input = { ...values, imageUrl: values.imageUrl || undefined };
-    if (editing) await services.admin.categories.update(editing.id, input);
-    else await services.admin.categories.create(input);
-    reset(defaults);
-    setEditing(null);
-    setMessage("Category saved.");
-    load();
-  };
-  const archive = async (category: AdminCategory) => {
-    if (!window.confirm(`Archive ${category.name}? Products must be moved first.`)) return;
+    const input = {
+      ...values,
+      active: editing ? editing.active : true,
+      imageUrl: values.imageUrl || undefined,
+    };
     try {
-      await services.admin.categories.archive(category.id);
-      setMessage("Category archived.");
-      load();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not archive category.");
+      if (editing) await services.admin.categories.update(editing.id, input);
+      else await services.admin.categories.create(input);
+      reset(defaults);
+      setEditing(null);
+      notify("Category saved.");
+      setRefreshKey((current) => current + 1);
+    } catch {
+      notify("Category could not be saved. Try again.", "error");
     }
+  };
+  const archive = async () => {
+    if (!archiveTarget) return;
+    await services.admin.categories.archive(archiveTarget.id);
+    notify(`${archiveTarget.name} was archived.`);
+    setArchiveTarget(null);
+    setRefreshKey((current) => current + 1);
+  };
+  const unarchive = async () => {
+    if (!unarchiveTarget) return;
+    await services.admin.categories.unarchive(unarchiveTarget.id);
+    notify(`${unarchiveTarget.name} was restored.`);
+    setUnarchiveTarget(null);
+    setRefreshKey((current) => current + 1);
   };
   return (
     <div className="admin-page">
@@ -74,6 +105,11 @@ export function CategoryManager() {
       </div>
       <div className="admin-two-column">
         <section className="admin-table-wrap">
+          {isLoading && (
+            <p className="admin-data-loading" role="status">
+              Loading categories...
+            </p>
+          )}
           <table>
             <thead>
               <tr>
@@ -101,16 +137,28 @@ export function CategoryManager() {
                     </span>
                   </td>
                   <td>
-                    <button className="admin-archive" onClick={() => edit(category)} type="button">
-                      <PencilSimple aria-hidden="true" size={16} /> Edit
-                    </button>
-                    <button
-                      className="admin-archive"
-                      onClick={() => archive(category)}
-                      type="button"
-                    >
-                      <Trash aria-hidden="true" size={16} /> Archive
-                    </button>
+                    <AdminActionGroup>
+                      <AdminButton onClick={() => edit(category)} type="button" variant="text">
+                        <PencilSimple aria-hidden="true" size={16} /> Edit
+                      </AdminButton>
+                      {category.active ? (
+                        <AdminButton
+                          onClick={() => setArchiveTarget(category)}
+                          type="button"
+                          variant="text"
+                        >
+                          <Archive aria-hidden="true" size={16} /> Archive
+                        </AdminButton>
+                      ) : (
+                        <AdminButton
+                          onClick={() => setUnarchiveTarget(category)}
+                          type="button"
+                          variant="text"
+                        >
+                          <ArrowCounterClockwise aria-hidden="true" size={16} /> Unarchive
+                        </AdminButton>
+                      )}
+                    </AdminActionGroup>
                   </td>
                 </tr>
               ))}
@@ -141,29 +189,48 @@ export function CategoryManager() {
             Image URL <input {...register("imageUrl")} />
             {errors.imageUrl && <span>{errors.imageUrl.message}</span>}
           </label>
-          <label className="admin-checkbox">
-            <input {...register("active")} type="checkbox" /> Active category
-          </label>
-          {message && <p className="admin-form-alert">{message}</p>}
-          <div>
-            <button className="admin-save-button" disabled={isSubmitting} type="submit">
+          <AdminActionGroup>
+            <AdminButton
+              isLoading={isSubmitting}
+              loadingLabel={editing ? "Saving category..." : "Creating category..."}
+              type="submit"
+            >
               <Plus aria-hidden="true" size={18} /> {editing ? "Save category" : "Create category"}
-            </button>
+            </AdminButton>
             {editing && (
-              <button
-                className="admin-secondary-button"
+              <AdminButton
+                disabled={isSubmitting}
                 onClick={() => {
                   setEditing(null);
                   reset(defaults);
                 }}
                 type="button"
+                variant="secondary"
               >
                 Cancel
-              </button>
+              </AdminButton>
             )}
-          </div>
+          </AdminActionGroup>
         </form>
       </div>
+      {archiveTarget && (
+        <AdminConfirmDialog
+          confirmLabel="Archive category"
+          description="Products must be moved first. This category will no longer be available for new products."
+          onCancel={() => setArchiveTarget(null)}
+          onConfirm={archive}
+          title={`Archive ${archiveTarget.name}?`}
+        />
+      )}
+      {unarchiveTarget && (
+        <AdminConfirmDialog
+          confirmLabel="Unarchive category"
+          description="This category will become available for new products again."
+          onCancel={() => setUnarchiveTarget(null)}
+          onConfirm={unarchive}
+          title={`Unarchive ${unarchiveTarget.name}?`}
+        />
+      )}
     </div>
   );
 }

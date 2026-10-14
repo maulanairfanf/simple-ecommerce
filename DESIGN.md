@@ -60,6 +60,9 @@ Cream is the dominant canvas. Dark brown carries reading and anchoring surfaces.
 - Do not mix utility and semantic class styling casually. A component governed by a semantic class may use a local utility only when it is truly one-off and non-reusable.
 - Global CSS is limited to reset, tokens, typography, focus treatments, scrollbar styling, and shared primitives. New component styles belong with their feature area rather than in cascading override blocks.
 - Content-driven layout values, including `minmax()`, grid spans, and `calc()`, are allowed when they describe layout behavior rather than reusable visual design decisions.
+- Every admin action uses `AdminButton`, `AdminActionLink`, or `AdminActionGroup`. Do not add raw action buttons, styled action links, or page-specific action-group CSS to admin screens.
+- The shared action primitives own default, hover, focus-visible, disabled, pending, danger, and 44px target states. Their business behavior and confirmation copy remain specific to the action.
+- Native controls are permitted only inside the shared action primitives, for navigation links, or where a browser-native control is required, such as the hidden file input behind the image upload label.
 
 ## Layout And Components
 

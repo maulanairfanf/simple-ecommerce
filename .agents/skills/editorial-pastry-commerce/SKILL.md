@@ -26,6 +26,8 @@ Read `DESIGN.md` before changing UI. It is the project authority where it differ
 - Use semantic custom classes for reusable UI, responsive behavior, pseudo-states, nested selectors, and complex state. Custom classes must use tokens.
 - Do not add Tailwind utilities to a component already controlled by semantic styles unless the utility is local and non-reusable.
 - Keep global CSS for tokens and global primitives. New component styles should not be appended as broad cascade overrides.
+- Admin actions must use `AdminButton`, `AdminActionLink`, and `AdminActionGroup`. Never add raw buttons, action links, or page-specific action-group styling to an admin screen.
+- Shared admin actions own hover, focus, disabled, pending, danger, and minimum-target behavior. Keep confirmation text and business behavior specific to the action.
 
 ## Checks
 

@@ -138,13 +138,17 @@ Counts are operational metrics only. The frontend does not invent financial data
 }
 ```
 
-`POST /admin/products`, `GET /admin/products/{id}`, and `PATCH /admin/products/{id}` use that product payload. When variants exist, each variant owns its own ID, SKU, and stock quantity. Product-level stock must not duplicate variant stock ambiguously.
+`POST /admin/products`, `GET /admin/products/{id}`, and `PATCH /admin/products/{id}` use that product payload. `PATCH` may transition publication between `draft` and `active`, but it must reject transitions to or from `archived`; those transitions use the archive actions below. When variants exist, each variant owns its own ID, SKU, and stock quantity. Product-level stock must not duplicate variant stock ambiguously.
 
 `DELETE /admin/products/{id}` is an archive or soft-delete action. Go must preserve immutable historical order snapshots and reject unsafe deletion.
 
+`POST /admin/products/{id}/unarchive` restores an archived product as `draft`. Go must preserve the product history and must not publish the product automatically. The frontend prompts staff to review price, stock, and content before publishing.
+
 ### Categories
 
-`GET|POST /admin/categories`, `PATCH /admin/categories/{id}`, and `DELETE /admin/categories/{id}` manage `{ name, slug, description, imageUrl, active }`. Go must reject archival or require product reassignment when a category still contains products.
+`GET|POST /admin/categories`, `PATCH /admin/categories/{id}`, and `DELETE /admin/categories/{id}` manage `{ name, slug, description, imageUrl, active }`. `PATCH` must not change `active`; use archive or unarchive actions. Go must reject archival or require product reassignment when a category still contains products.
+
+`POST /admin/categories/{id}/unarchive` restores an archived category to `active`, making it available for new products again.
 
 ### Inventory, orders, and media
 

@@ -4,6 +4,8 @@ import { SignOut } from "@phosphor-icons/react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { AdminButton } from "@/components/admin/admin-action";
+import { AdminToastProvider } from "@/components/admin/admin-toast";
 import { AdminGuard } from "@/components/admin/admin-guard";
 import {
   AdminSessionProvider,
@@ -48,15 +50,16 @@ function ShellContent({ children }: { children: ReactNode }) {
           </nav>
           <div className="admin-sidebar-bottom">
             <p>{session?.admin.name}</p>
-            <button
+            <AdminButton
               onClick={async () => {
                 await logout();
                 router.replace("/admin/login");
               }}
               type="button"
+              variant="text"
             >
               <SignOut aria-hidden="true" size={18} /> Log out
-            </button>
+            </AdminButton>
           </div>
         </aside>
         <main className="admin-main">{children}</main>
@@ -68,7 +71,9 @@ function ShellContent({ children }: { children: ReactNode }) {
 export function AdminShell({ children }: { children: ReactNode }) {
   return (
     <AdminSessionProvider>
-      <ShellContent>{children}</ShellContent>
+      <AdminToastProvider>
+        <ShellContent>{children}</ShellContent>
+      </AdminToastProvider>
     </AdminSessionProvider>
   );
 }

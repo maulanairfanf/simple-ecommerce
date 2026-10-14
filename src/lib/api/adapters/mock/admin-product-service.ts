@@ -11,6 +11,7 @@ export const mockAdminProductService: AdminProductService = {
         return (
           matchesQuery &&
           (!query.category || product.category === query.category) &&
+          (!query.availability || product.availability === query.availability) &&
           (!query.status || product.publicationStatus === query.status)
         );
       })
@@ -44,6 +45,14 @@ export const mockAdminProductService: AdminProductService = {
   async update(id, input) {
     const index = adminProducts.findIndex((product) => product.id === id);
     if (index < 0) throw new Error("Product not found");
+    if (
+      (adminProducts[index].publicationStatus === "archived" &&
+        input.publicationStatus !== "archived") ||
+      (adminProducts[index].publicationStatus !== "archived" &&
+        input.publicationStatus === "archived")
+    ) {
+      throw new Error("Use the archive or unarchive action to change archived status");
+    }
     const product = { ...input, id, updatedAt: new Date().toISOString() };
     adminProducts[index] = product;
     return product;
@@ -52,6 +61,12 @@ export const mockAdminProductService: AdminProductService = {
     const product = adminProducts.find((item) => item.id === id);
     if (!product) throw new Error("Product not found");
     product.publicationStatus = "archived";
+    product.updatedAt = new Date().toISOString();
+  },
+  async unarchive(id) {
+    const product = adminProducts.find((item) => item.id === id);
+    if (!product) throw new Error("Product not found");
+    product.publicationStatus = "draft";
     product.updatedAt = new Date().toISOString();
   },
 };

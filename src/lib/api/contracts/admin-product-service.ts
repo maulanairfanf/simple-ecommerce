@@ -4,11 +4,12 @@ import type {
   ProductInput,
   ProductPublicationStatus,
 } from "@/lib/types/admin";
-import type { ProductCategory } from "@/lib/types/commerce";
+import type { Availability, ProductCategory } from "@/lib/types/commerce";
 
 export type AdminProductQuery = {
   q?: string;
   category?: ProductCategory;
+  availability?: Availability;
   status?: ProductPublicationStatus;
   sort?: "updated" | "price-low" | "price-high";
   page?: number;
@@ -21,4 +22,5 @@ export interface AdminProductService {
   create(input: ProductInput): Promise<AdminProduct>;
   update(id: string, input: ProductInput): Promise<AdminProduct>;
   archive(id: string): Promise<void>;
+  unarchive(id: string): Promise<void>;
 }

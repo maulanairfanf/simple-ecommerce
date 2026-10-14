@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import { AdminActionLink, AdminActionGroup } from "@/components/admin/admin-action";
 import { services } from "@/lib/api";
 import type { AdminDashboard } from "@/lib/types/admin";
 
@@ -46,10 +46,12 @@ export default function AdminDashboardPage() {
           <strong>{dashboard.pendingOrderCount}</strong>
         </article>
       </div>
-      <div className="admin-quick-actions">
-        <Link href="/admin/products/new">Add a product</Link>
-        <Link href="/admin/products">Review low stock</Link>
-      </div>
+      <AdminActionGroup>
+        <AdminActionLink href="/admin/products/new">Add a product</AdminActionLink>
+        <AdminActionLink href="/admin/products?availability=low_stock" variant="secondary">
+          Review low stock
+        </AdminActionLink>
+      </AdminActionGroup>
     </div>
   );
 }

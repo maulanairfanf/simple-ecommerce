@@ -41,7 +41,7 @@ describe("admin frontend mocks", () => {
     ).toBe(false);
   });
 
-  it("creates then archives a mock product", async () => {
+  it("creates, archives, then restores a mock product as a draft", async () => {
     const product = await mockAdminProductService.create({
       name: "Test Bun",
       slug: `test-bun-${Date.now()}`,
@@ -57,11 +57,47 @@ describe("admin frontend mocks", () => {
     });
     await mockAdminProductService.archive(product.id);
     expect((await mockAdminProductService.getById(product.id))?.publicationStatus).toBe("archived");
+    await expect(
+      mockAdminProductService.update(product.id, { ...product, publicationStatus: "active" }),
+    ).rejects.toThrow("archive or unarchive");
+    await mockAdminProductService.unarchive(product.id);
+    expect((await mockAdminProductService.getById(product.id))?.publicationStatus).toBe("draft");
   });
 
   it("blocks archival of a category that still has products", async () => {
     await expect(mockAdminCategoryService.archive("cat_pastries")).rejects.toThrow(
       "Move products before archiving",
     );
+  });
+
+  it("archives then restores an empty category", async () => {
+    const category = await mockAdminCategoryService.create({
+      name: "Test category",
+      slug: `test-category-${Date.now()}`,
+      description: "A category used to verify archive and unarchive behavior.",
+      imageUrl: undefined,
+      active: true,
+    });
+    await mockAdminCategoryService.archive(category.id);
+    expect(
+      (await mockAdminCategoryService.list()).find((item) => item.id === category.id)?.active,
+    ).toBe(false);
+    await mockAdminCategoryService.unarchive(category.id);
+    expect(
+      (await mockAdminCategoryService.list()).find((item) => item.id === category.id)?.active,
+    ).toBe(true);
+  });
+
+  it("requires category status changes to use archive actions", async () => {
+    const category = await mockAdminCategoryService.create({
+      name: "Lifecycle category",
+      slug: `lifecycle-category-${Date.now()}`,
+      description: "A category used to verify lifecycle protections.",
+      imageUrl: undefined,
+      active: true,
+    });
+    await expect(
+      mockAdminCategoryService.update(category.id, { ...category, active: false }),
+    ).rejects.toThrow("archive or unarchive");
   });
 });

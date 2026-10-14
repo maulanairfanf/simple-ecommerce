@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { AdminButton } from "@/components/admin/admin-action";
 import {
   AdminSessionProvider,
   useAdminSession,
@@ -47,9 +48,9 @@ function LoginForm() {
         <input autoComplete="current-password" {...register("password")} type="password" />
         {errors.password && <span>{errors.password.message}</span>}
       </label>
-      <button disabled={isSubmitting} type="submit">
-        {isSubmitting ? "Signing in..." : "Sign in to admin"}
-      </button>
+      <AdminButton isLoading={isSubmitting} loadingLabel="Signing in..." type="submit">
+        Sign in to admin
+      </AdminButton>
     </form>
   );
 }

@@ -3,10 +3,12 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Trash } from "@phosphor-icons/react";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { AdminActionLink, AdminButton } from "@/components/admin/admin-action";
+import { AdminConfirmDialog } from "@/components/admin/admin-confirm-dialog";
+import { useAdminToast } from "@/components/admin/admin-toast";
 import { services } from "@/lib/api";
 import type { AdminProduct, AdminProductImage, ProductInput } from "@/lib/types/admin";
 import {
@@ -35,7 +37,11 @@ export function ProductEditor({ productId }: { productId?: string }) {
     productId ? undefined : null,
   );
   const [images, setImages] = useState<AdminProductImage[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<AdminProductImage | null>(null);
   const [saveError, setSaveError] = useState("");
+  const { notify } = useAdminToast();
+  const isArchived = product?.publicationStatus === "archived";
   const {
     register,
     handleSubmit,
@@ -44,29 +50,49 @@ export function ProductEditor({ productId }: { productId?: string }) {
   } = useForm<ProductValues>({ resolver: zodResolver(productFormSchema), defaultValues: defaults });
   useEffect(() => {
     if (!productId) return;
-    services.admin.products.getById(productId).then((item) => {
-      setProduct(item);
-      if (item) {
-        reset({
-          name: item.name,
-          slug: item.slug,
-          description: item.description,
-          category: item.category,
-          priceAmount: item.price.amount,
-          sku: item.sku,
-          stockQuantity: item.stockQuantity,
-          availability: item.availability,
-          publicationStatus: item.publicationStatus,
-          tags: item.tags.join(", "),
-        });
-        setImages(item.images);
-      }
-    });
-  }, [productId, reset]);
+    services.admin.products
+      .getById(productId)
+      .then((item) => {
+        setProduct(item);
+        if (item) {
+          reset({
+            name: item.name,
+            slug: item.slug,
+            description: item.description,
+            category: item.category,
+            priceAmount: item.price.amount,
+            sku: item.sku,
+            stockQuantity: item.stockQuantity,
+            availability: item.availability,
+            publicationStatus: item.publicationStatus,
+            tags: item.tags.join(", "),
+          });
+          setImages(item.images);
+        }
+      })
+      .catch(() => {
+        setProduct(null);
+        notify("Product could not be loaded. Try again.", "error");
+      });
+  }, [notify, productId, reset]);
   const onFile = async (file?: File) => {
     if (!file) return;
-    const image = await services.admin.media.upload(file);
-    setImages((current) => [...current, { ...image, position: current.length }]);
+    setIsUploading(true);
+    try {
+      const image = await services.admin.media.upload(file);
+      setImages((current) => [...current, { ...image, position: current.length }]);
+      notify("Image added.");
+    } catch {
+      notify("Image could not be uploaded. Try again.", "error");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  const removeImage = async () => {
+    if (!removeTarget) return;
+    setImages((current) => current.filter((image) => image.id !== removeTarget.id));
+    notify("Image removed.");
+    setRemoveTarget(null);
   };
   const submit = async (values: ProductValues) => {
     setSaveError("");
@@ -89,6 +115,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
     try {
       if (productId) await services.admin.products.update(productId, input);
       else await services.admin.products.create(input);
+      notify(productId ? "Product updated." : "Product created.");
       router.push("/admin/products");
     } catch {
       setSaveError("The mock service could not save this product. Try again.");
@@ -104,14 +131,16 @@ export function ProductEditor({ productId }: { productId?: string }) {
     return (
       <div className="admin-page">
         <p>That product could not be found.</p>
-        <Link href="/admin/products">Back to products</Link>
+        <AdminActionLink href="/admin/products" variant="text">
+          Back to products
+        </AdminActionLink>
       </div>
     );
   return (
     <div className="admin-page">
-      <Link className="admin-back-link" href="/admin/products">
+      <AdminActionLink href="/admin/products" variant="text">
         <ArrowLeft aria-hidden="true" size={18} /> Products
-      </Link>
+      </AdminActionLink>
       <div className="admin-page-heading">
         <div>
           <p className="admin-eyebrow">{productId ? "Edit product" : "New product"}</p>
@@ -179,11 +208,14 @@ export function ProductEditor({ productId }: { productId?: string }) {
           </label>
           <label>
             Publication
-            <select {...register("publicationStatus")}>
+            <select {...register("publicationStatus")} disabled={isArchived}>
               <option value="draft">Draft</option>
               <option value="active">Active</option>
-              <option value="archived">Archived</option>
+              {isArchived && <option value="archived">Archived</option>}
             </select>
+            {isArchived && (
+              <span>Restore this product from the products list before publishing it.</span>
+            )}
           </label>
           <label className="admin-form-full">
             Tags
@@ -198,10 +230,11 @@ export function ProductEditor({ productId }: { productId?: string }) {
               URLs.
             </p>
           </div>
-          <label className="admin-upload-button">
-            Choose image
+          <label className={`admin-upload-button${isUploading ? " is-pending" : ""}`}>
+            {isUploading ? "Uploading..." : "Choose image"}
             <input
               accept="image/*"
+              disabled={isUploading}
               onChange={(event) => onFile(event.target.files?.[0])}
               type="file"
             />
@@ -210,24 +243,32 @@ export function ProductEditor({ productId }: { productId?: string }) {
             {images.map((image) => (
               <figure key={image.id}>
                 <img alt={image.alt} src={image.url} />
-                <button
+                <AdminButton
                   aria-label={`Remove ${image.alt}`}
-                  onClick={() =>
-                    setImages((current) => current.filter((item) => item.id !== image.id))
-                  }
+                  onClick={() => setRemoveTarget(image)}
                   type="button"
+                  variant="danger"
                 >
                   <Trash aria-hidden="true" size={18} />
-                </button>
+                </AdminButton>
               </figure>
             ))}
           </div>
         </section>
         {saveError && <p className="admin-form-alert">{saveError}</p>}
-        <button className="admin-save-button" disabled={isSubmitting} type="submit">
-          {isSubmitting ? "Saving..." : productId ? "Save product" : "Create product"}
-        </button>
+        <AdminButton isLoading={isSubmitting} loadingLabel="Saving..." type="submit">
+          {productId ? "Save product" : "Create product"}
+        </AdminButton>
       </form>
+      {removeTarget && (
+        <AdminConfirmDialog
+          confirmLabel="Remove image"
+          description="This removes the image from this product. Save the product to persist the change."
+          onCancel={() => setRemoveTarget(null)}
+          onConfirm={removeImage}
+          title="Remove this image?"
+        />
+      )}
     </div>
   );
 }
