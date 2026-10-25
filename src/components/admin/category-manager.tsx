@@ -9,17 +9,17 @@ import { AdminActionGroup, AdminButton } from "@/components/admin/admin-action";
 import { AdminConfirmDialog } from "@/components/admin/admin-confirm-dialog";
 import { useAdminToast } from "@/components/admin/admin-toast";
 import { services } from "@/lib/api";
-import type { AdminCategory } from "@/lib/types/admin";
+import { CATEGORY_STATUS, type AdminCategory } from "@/lib/types/admin";
 
 const schema = z.object({
   name: z.string().min(2, "Name needs at least 2 characters."),
   slug: z
     .string()
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens."),
-  status: z.enum(["active", "inactive"]),
+  status: z.enum([CATEGORY_STATUS.ACTIVE, CATEGORY_STATUS.INACTIVE]),
 });
 type Values = z.infer<typeof schema>;
-const defaults: Values = { name: "", slug: "", status: "active" };
+const defaults: Values = { name: "", slug: "", status: CATEGORY_STATUS.ACTIVE };
 
 export function CategoryManager() {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
@@ -84,14 +84,19 @@ export function CategoryManager() {
     }
   };
   const changeStatus = async (category: AdminCategory) => {
-    const status = category.status === "active" ? "inactive" : "active";
+    const status =
+      category.status === CATEGORY_STATUS.ACTIVE
+        ? CATEGORY_STATUS.INACTIVE
+        : CATEGORY_STATUS.ACTIVE;
     try {
       await services.admin.categories.update(category.id, {
         name: category.name,
         slug: category.slug,
         status,
       });
-      notify(`${category.name} was ${status === "active" ? "unarchived" : "archived"}.`);
+      notify(
+        `${category.name} was ${status === CATEGORY_STATUS.ACTIVE ? "unarchived" : "archived"}.`,
+      );
       setRefreshKey((current) => current + 1);
     } catch {
       notify("Category status could not be updated. Try again.", "error");
@@ -140,7 +145,7 @@ export function CategoryManager() {
                   </td>
                   <td>
                     <span
-                      className={`admin-status ${category.status === "active" ? "status-active" : "status-archived"}`}
+                      className={`admin-status ${category.status === CATEGORY_STATUS.ACTIVE ? "status-active" : "status-archived"}`}
                     >
                       {category.status}
                     </span>
@@ -155,7 +160,7 @@ export function CategoryManager() {
                         type="button"
                         variant="text"
                       >
-                        {category.status === "active" ? (
+                        {category.status === CATEGORY_STATUS.ACTIVE ? (
                           <>
                             <Archive aria-hidden="true" size={16} /> Archive
                           </>
@@ -197,8 +202,8 @@ export function CategoryManager() {
           <label>
             Status
             <select {...register("status")}>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value={CATEGORY_STATUS.ACTIVE}>Active</option>
+              <option value={CATEGORY_STATUS.INACTIVE}>Inactive</option>
             </select>
             {errors.status && <span>{errors.status.message}</span>}
           </label>

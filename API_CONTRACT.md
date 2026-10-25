@@ -30,9 +30,9 @@ Query: `category`, `q`, `sort`, `page`, `pageSize`.
 }
 ```
 
-### `GET /products/{id}`
+### `GET /products/{slug}`
 
-Returns the authoritative product, variant identifiers, media, ingredients/allergens supplied by the backend, and current stock messaging.
+Returns the public product detail for an active product, including media and current stock messaging. The slug route is used by the storefront, for example `/shop/butter-croissant`. Archived or missing products return `404`.
 
 ### `GET /categories`
 
@@ -118,31 +118,85 @@ Counts are operational metrics only. The frontend does not invent financial data
 
 ### Products
 
-`GET /admin/products?q=&category=&status=&sort=&page=&pageSize=` returns the standard paginated list shape. Product price uses integer IDR units:
+The admin product API uses the `/admin/products` resource and returns an envelope with `status`, `data`, and `message`. Product price is an integer IDR amount. Categories are submitted as category IDs and returned as category objects.
+
+#### `GET /admin/products`
+
+Returns a product array:
 
 ```json
 {
-  "id": "prd_...",
-  "name": "Butter Swirl",
-  "slug": "butter-swirl",
-  "description": "...",
-  "category": "pastries",
-  "price": { "amount": 650, "currency": "IDR" },
-  "sku": "JW-PAS-001",
-  "stockQuantity": 18,
-  "availability": "in_stock",
-  "publicationStatus": "active",
-  "tags": ["bestseller"],
-  "images": [],
-  "updatedAt": "..."
+  "status": 200,
+  "data": [
+    {
+      "id": 35,
+      "name": "Butter Croissant",
+      "slug": "butter-croissant",
+      "quantity": 24,
+      "categories": [
+        {
+          "id": 22,
+          "name": "Pastries",
+          "slug": "pastries",
+          "status": "active",
+          "created_at": "2026-10-15T20:43:36.199197+07:00",
+          "updated_at": "2026-10-25T12:49:13.167645+07:00"
+        }
+      ],
+      "price": 35000,
+      "description": "Flaky buttery croissant baked fresh every morning",
+      "sku": "PAS-CRO-001",
+      "publication_status": "active",
+      "image": "https://example.com/products/butter-croissant.webp",
+      "created_at": "2026-10-25T12:51:23.010188+07:00",
+      "updated_at": "2026-10-25T12:51:23.010188+07:00"
+    }
+  ],
+  "message": "success"
 }
 ```
 
-`POST /admin/products`, `GET /admin/products/{id}`, and `PATCH /admin/products/{id}` use that product payload. `PATCH` may transition publication between `draft` and `active`, but it must reject transitions to or from `archived`; those transitions use the archive actions below. When variants exist, each variant owns its own ID, SKU, and stock quantity. Product-level stock must not duplicate variant stock ambiguously.
+#### `GET /admin/products/{id}`
 
-`DELETE /admin/products/{id}` is an archive or soft-delete action. Go must preserve immutable historical order snapshots and reject unsafe deletion.
+Returns the same product object inside `data`.
 
-`POST /admin/products/{id}/unarchive` restores an archived product as `draft`. Go must preserve the product history and must not publish the product automatically. The frontend prompts staff to review price, stock, and content before publishing.
+#### `POST /admin/products`
+
+Accepts `multipart/form-data` with these fields:
+
+```text
+name: Butter Croissant
+slug: butter-croissant
+quantity: 24
+price: 35000
+description: Flaky buttery croissant baked fresh every morning
+sku: PAS-CRO-001
+tags: pastry
+tags: bestseller
+categories: 22
+publication_status: active
+image: <file>
+```
+
+`tags` and `categories` may be repeated for multiple values. The response contains the created product in `data`.
+
+#### `PUT /admin/products/{id}`
+
+Accepts the same `multipart/form-data` fields as create and replaces the product fields. The response contains the updated product in `data`.
+
+#### `PATCH /admin/products/{id}/publication_status`
+
+Updates only publication status:
+
+```json
+{ "publication_status": "archived" }
+```
+
+Valid values are `active` and `archived`. Unarchiving uses `active`.
+
+#### `DELETE /admin/products/{id}`
+
+Deletes the product. Go must reject deletion when the product is referenced by immutable historical order data.
 
 ### Categories
 

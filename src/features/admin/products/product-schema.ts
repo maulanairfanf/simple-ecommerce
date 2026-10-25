@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PRODUCT_PUBLICATION_STATUS } from "@/lib/types/admin";
 
 export const productFormSchema = z.object({
   name: z.string().min(2, "Name needs at least 2 characters."),
@@ -11,7 +12,10 @@ export const productFormSchema = z.object({
   sku: z.string().min(3, "SKU needs at least 3 characters."),
   stockQuantity: z.number().int().nonnegative("Stock cannot be negative."),
   availability: z.enum(["in_stock", "low_stock", "sold_out"]),
-  publicationStatus: z.enum(["pending", "draft", "active", "archived"]),
+  publicationStatus: z.enum([
+    PRODUCT_PUBLICATION_STATUS.ACTIVE,
+    PRODUCT_PUBLICATION_STATUS.ARCHIVED,
+  ]),
   tags: z.string(),
 });
 

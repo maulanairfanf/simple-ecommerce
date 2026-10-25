@@ -3,7 +3,12 @@
  * fetch directly; concrete HTTP services will use this client in later milestones.
  */
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const baseUrl = "/api/backend";
+  const baseUrl =
+    typeof window === "undefined"
+      ? (process.env.API_BASE_URL ??
+        process.env.NEXT_PUBLIC_API_BASE_URL ??
+        "http://localhost:8080")
+      : "/api/backend";
   let token: string | undefined;
   if (typeof window !== "undefined") {
     try {

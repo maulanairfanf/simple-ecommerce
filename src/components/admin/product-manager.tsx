@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import {
   Archive,
@@ -7,13 +8,18 @@ import {
   PencilSimple,
   Plus,
   Trash,
+  X,
 } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { AdminActionGroup, AdminActionLink, AdminButton } from "@/components/admin/admin-action";
 import { AdminConfirmDialog } from "@/components/admin/admin-confirm-dialog";
 import { useAdminToast } from "@/components/admin/admin-toast";
 import { services } from "@/lib/api";
-import type { AdminProduct, ProductPublicationStatus } from "@/lib/types/admin";
+import {
+  PRODUCT_PUBLICATION_STATUS,
+  type AdminProduct,
+  type ProductPublicationStatus,
+} from "@/lib/types/admin";
 import type { Availability } from "@/lib/types/commerce";
 
 export function ProductManager({
@@ -29,6 +35,7 @@ export function ProductManager({
   const [archiveTarget, setArchiveTarget] = useState<AdminProduct | null>(null);
   const [unarchiveTarget, setUnarchiveTarget] = useState<AdminProduct | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminProduct | null>(null);
+  const [imageTarget, setImageTarget] = useState<AdminProduct | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const { notify } = useAdminToast();
@@ -57,6 +64,15 @@ export function ProductManager({
     };
   }, [availability, category, notify, query, refreshKey, status]);
 
+  useEffect(() => {
+    if (!imageTarget) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setImageTarget(null);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [imageTarget]);
+
   const archive = async () => {
     if (!archiveTarget) return;
     await services.admin.products.archive(archiveTarget.id);
@@ -67,15 +83,20 @@ export function ProductManager({
   const unarchive = async () => {
     if (!unarchiveTarget) return;
     await services.admin.products.unarchive(unarchiveTarget.id);
-    notify(`${unarchiveTarget.name} was restored as a draft.`);
+    notify(`${unarchiveTarget.name} was restored as active.`);
     setUnarchiveTarget(null);
     setRefreshKey((current) => current + 1);
   };
   const remove = async () => {
     if (!deleteTarget) return;
-    setProducts((current) => current.filter((product) => product.id !== deleteTarget.id));
-    notify(`${deleteTarget.name} was deleted.`);
-    setDeleteTarget(null);
+    try {
+      await services.admin.products.delete(deleteTarget.id);
+      notify(`${deleteTarget.name} was deleted.`);
+      setDeleteTarget(null);
+      setRefreshKey((current) => current + 1);
+    } catch {
+      notify("Product could not be deleted. Try again.", "error");
+    }
   };
   return (
     <div className="admin-page">
@@ -117,10 +138,8 @@ export function ProductManager({
             value={status}
           >
             <option value="all">All statuses</option>
-            <option value="active">Active</option>
-            <option value="pending">Pending</option>
-            <option value="draft">Draft</option>
-            <option value="archived">Archived</option>
+            <option value={PRODUCT_PUBLICATION_STATUS.ACTIVE}>Active</option>
+            <option value={PRODUCT_PUBLICATION_STATUS.ARCHIVED}>Archived</option>
           </select>
         </label>
         <label>
@@ -160,7 +179,23 @@ export function ProductManager({
             {products.map((product) => (
               <tr key={product.id}>
                 <td>
-                  <strong>{product.name}</strong>
+                  <button
+                    aria-label={`View image for ${product.name}`}
+                    className="product-thumbnail"
+                    onClick={() => setImageTarget(product)}
+                    type="button"
+                  >
+                    {product.images[0] ? (
+                      <img alt="" src={product.images[0].url} />
+                    ) : (
+                      <span aria-hidden="true">No image</span>
+                    )}
+                  </button>
+                  <strong>
+                    <AdminActionLink href={`/admin/products/${product.id}`} variant="text">
+                      {product.name}
+                    </AdminActionLink>
+                  </strong>
                   <small>{product.sku}</small>
                 </td>
                 <td>{product.category}</td>
@@ -185,7 +220,7 @@ export function ProductManager({
                     <AdminActionLink href={`/admin/products/${product.id}/edit`} variant="text">
                       <PencilSimple aria-hidden="true" size={16} /> Edit
                     </AdminActionLink>
-                    {product.publicationStatus === "archived" ? (
+                    {product.publicationStatus === PRODUCT_PUBLICATION_STATUS.ARCHIVED ? (
                       <AdminButton
                         onClick={() => setUnarchiveTarget(product)}
                         type="button"
@@ -236,7 +271,7 @@ export function ProductManager({
       {archiveTarget && (
         <AdminConfirmDialog
           confirmLabel="Archive product"
-          description="This hides the product from future sale. The future Go API must preserve historical order snapshots."
+          description="This hides the product from future sale while preserving its record."
           onCancel={() => setArchiveTarget(null)}
           onConfirm={archive}
           title={`Archive ${archiveTarget.name}?`}
@@ -245,7 +280,7 @@ export function ProductManager({
       {unarchiveTarget && (
         <AdminConfirmDialog
           confirmLabel="Unarchive product"
-          description="The product will be restored as a draft. Review its price, stock, and content before publishing it again."
+          description="The product will become active again and available for sale."
           onCancel={() => setUnarchiveTarget(null)}
           onConfirm={unarchive}
           title={`Unarchive ${unarchiveTarget.name}?`}
@@ -259,6 +294,34 @@ export function ProductManager({
           onConfirm={remove}
           title={`Delete ${deleteTarget.name}?`}
         />
+      )}
+      {imageTarget && (
+        <div
+          aria-labelledby="product-image-title"
+          aria-modal="true"
+          className="product-image-modal"
+          onClick={() => setImageTarget(null)}
+          role="dialog"
+        >
+          <div onClick={(event) => event.stopPropagation()}>
+            <div className="product-image-modal-heading">
+              <h2 id="product-image-title">{imageTarget.name}</h2>
+              <AdminButton
+                aria-label="Close product image"
+                onClick={() => setImageTarget(null)}
+                type="button"
+                variant="text"
+              >
+                <X aria-hidden="true" size={20} />
+              </AdminButton>
+            </div>
+            {imageTarget.images[0] ? (
+              <img alt={imageTarget.images[0].alt} src={imageTarget.images[0].url} />
+            ) : (
+              <p>No image available for this product.</p>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

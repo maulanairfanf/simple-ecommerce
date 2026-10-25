@@ -4,7 +4,6 @@ import { httpProductService } from "@/lib/api/adapters/http/product-service";
 import { httpCategoryService } from "@/lib/api/adapters/http/category-service";
 import { httpAdminAuthService } from "@/lib/api/adapters/http/admin-auth-service";
 import { mockAdminDashboardService } from "@/lib/api/adapters/mock/admin-dashboard-service";
-import { mockAdminProductService } from "@/lib/api/adapters/mock/admin-product-service";
 import { httpAdminProductService } from "@/lib/api/adapters/http/admin-product-service";
 import { httpAdminCategoryService } from "@/lib/api/adapters/http/admin-category-service";
 import { mockAdminMediaService } from "@/lib/api/adapters/mock/admin-media-service";
@@ -19,7 +18,7 @@ export const services = {
   admin: {
     auth: httpAdminAuthService,
     dashboard: mockAdminDashboardService,
-    products: useHttpAdapter ? httpAdminProductService : mockAdminProductService,
+    products: httpAdminProductService,
     categories: httpAdminCategoryService,
     media: mockAdminMediaService,
   },

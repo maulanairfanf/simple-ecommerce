@@ -33,13 +33,13 @@ describe("admin frontend mocks", () => {
         sku: "",
         stockQuantity: -1,
         availability: "in_stock",
-        publicationStatus: "draft",
+        publicationStatus: "active",
         tags: "",
       }).success,
     ).toBe(false);
   });
 
-  it("creates, archives, then restores a mock product as a draft", async () => {
+  it("creates, archives, then restores a mock product", async () => {
     const product = await mockAdminProductService.create({
       name: "Test Bun",
       slug: `test-bun-${Date.now()}`,
@@ -49,7 +49,7 @@ describe("admin frontend mocks", () => {
       sku: `TEST-${Date.now()}`,
       stockQuantity: 1,
       availability: "in_stock",
-      publicationStatus: "draft",
+      publicationStatus: "active",
       tags: [],
       images: [],
     });
@@ -59,7 +59,7 @@ describe("admin frontend mocks", () => {
       mockAdminProductService.update(product.id, { ...product, publicationStatus: "active" }),
     ).rejects.toThrow("archive or unarchive");
     await mockAdminProductService.unarchive(product.id);
-    expect((await mockAdminProductService.getById(product.id))?.publicationStatus).toBe("draft");
+    expect((await mockAdminProductService.getById(product.id))?.publicationStatus).toBe("active");
   });
 
   it("updates a category status", async () => {

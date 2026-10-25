@@ -41,7 +41,7 @@ export const adminProducts: AdminProduct[] = [
     sku: "JW-BRD-003",
     stockQuantity: 0,
     availability: "sold_out",
-    publicationStatus: "draft",
+    publicationStatus: "active",
     tags: [],
     images: [],
     updatedAt: "2026-10-10T08:15:00Z",

@@ -5,11 +5,11 @@ import { services } from "@/lib/api";
 export const metadata = { title: "Shop | Daily Crumb" };
 
 export default async function ShopPage() {
-  const [categories, featured, freshToday] = await Promise.all([
-    services.categories.getAll(),
+  const [featured, freshToday] = await Promise.all([
     services.products.getFeatured(),
     services.products.getFreshToday(),
   ]);
+  const categories = await services.categories.getAll().catch(() => []);
   const products = Array.from(
     new Map([...featured, ...freshToday].map((product) => [product.id, product])).values(),
   );

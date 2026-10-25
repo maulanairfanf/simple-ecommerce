@@ -1,11 +1,12 @@
 export type Money = {
   amount: number;
-  currency: "USD";
+  currency: "USD" | "IDR";
 };
 
 export type Availability = "in_stock" | "low_stock" | "sold_out";
 
-export type ProductCategory = "pastries" | "breads" | "cakes" | "sweets" | "beverages" | "gifts";
+export type ProductCategory =
+  "pastries" | "breads" | "cakes" | "sweets" | "beverages" | "gifts" | "cookies";
 
 export type Product = {
   id: string;
@@ -20,6 +21,21 @@ export type Product = {
   palette: "butter" | "oat" | "jam" | "rose" | "sage" | "cream";
   availability: Availability;
   tags: string[];
+};
+
+export type ProductDetail = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  category: string;
+  price: { amount: number; currency: "IDR" };
+  sku: string;
+  quantity: number;
+  availability: Availability;
+  publicationStatus: "active" | "archived";
+  tags: string[];
+  imageUrl?: string;
 };
 
 export type Category = {

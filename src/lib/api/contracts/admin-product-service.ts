@@ -23,4 +23,5 @@ export interface AdminProductService {
   update(id: string, input: ProductInput): Promise<AdminProduct>;
   archive(id: string): Promise<void>;
   unarchive(id: string): Promise<void>;
+  delete(id: string): Promise<void>;
 }

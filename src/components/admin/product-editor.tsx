@@ -2,15 +2,16 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Trash } from "@phosphor-icons/react";
+import { ArrowLeft } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Cropper, { type Area } from "react-easy-crop";
 import { useForm } from "react-hook-form";
 import { AdminActionLink, AdminButton } from "@/components/admin/admin-action";
-import { AdminConfirmDialog } from "@/components/admin/admin-confirm-dialog";
 import { useAdminToast } from "@/components/admin/admin-toast";
 import { services } from "@/lib/api";
-import type { AdminProduct, AdminProductImage, ProductInput } from "@/lib/types/admin";
+import type { AdminCategory, AdminProduct, ProductInput } from "@/lib/types/admin";
+import { PRODUCT_PUBLICATION_STATUS } from "@/lib/types/admin";
 import {
   productFormSchema,
   type ProductFormValues,
@@ -18,16 +19,111 @@ import {
 
 type ProductValues = ProductFormValues;
 
+async function cropImage(source: string, area: Area): Promise<File> {
+  const image = new Image();
+  image.src = source;
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("Image could not be cropped."));
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = area.width;
+  canvas.height = area.height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Image could not be cropped.");
+  context.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, area.width, area.height);
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/jpeg", 0.9),
+  );
+  if (!blob) throw new Error("Image could not be cropped.");
+  return new File([blob], "product-image.jpg", { type: "image/jpeg" });
+}
+
+function ImageCropDialog({
+  source,
+  onCancel,
+  onApply,
+}: {
+  source: string;
+  onCancel: () => void;
+  onApply: (file: File) => Promise<void>;
+}) {
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [area, setArea] = useState<Area | null>(null);
+  const [isApplying, setIsApplying] = useState(false);
+  const apply = async () => {
+    if (!area) return;
+    setIsApplying(true);
+    try {
+      await onApply(await cropImage(source, area));
+    } finally {
+      setIsApplying(false);
+    }
+  };
+  return (
+    <div
+      aria-labelledby="crop-product-image-title"
+      aria-modal="true"
+      className="image-crop-dialog"
+      role="dialog"
+    >
+      <div className="image-crop-dialog-panel">
+        <div className="image-crop-dialog-heading">
+          <div>
+            <p className="admin-eyebrow">Product image</p>
+            <h2 id="crop-product-image-title">Frame the bake.</h2>
+          </div>
+          <AdminButton disabled={isApplying} onClick={onCancel} type="button" variant="text">
+            Cancel
+          </AdminButton>
+        </div>
+        <div className="image-crop-stage">
+          <Cropper
+            aspect={4 / 3}
+            crop={crop}
+            image={source}
+            onCropChange={setCrop}
+            onCropComplete={(_, croppedAreaPixels) => setArea(croppedAreaPixels)}
+            onZoomChange={setZoom}
+            showGrid
+            zoom={zoom}
+          />
+        </div>
+        <label className="image-crop-zoom">
+          Zoom
+          <input
+            max="3"
+            min="1"
+            onChange={(event) => setZoom(Number(event.target.value))}
+            step="0.1"
+            type="range"
+            value={zoom}
+          />
+        </label>
+        <AdminButton
+          isLoading={isApplying}
+          loadingLabel="Applying crop..."
+          onClick={apply}
+          type="button"
+        >
+          Use cropped image
+        </AdminButton>
+      </div>
+    </div>
+  );
+}
+
 const defaults: ProductValues = {
   name: "",
   slug: "",
   description: "",
-  category: "pastries",
+  category: "",
   priceAmount: 0,
   sku: "",
   stockQuantity: 0,
   availability: "in_stock",
-  publicationStatus: "draft",
+  publicationStatus: PRODUCT_PUBLICATION_STATUS.ACTIVE,
   tags: "",
 };
 
@@ -36,18 +132,25 @@ export function ProductEditor({ productId }: { productId?: string }) {
   const [product, setProduct] = useState<AdminProduct | null | undefined>(
     productId ? undefined : null,
   );
-  const [images, setImages] = useState<AdminProductImage[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [removeTarget, setRemoveTarget] = useState<AdminProductImage | null>(null);
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState("");
+  const [cropSource, setCropSource] = useState("");
   const [saveError, setSaveError] = useState("");
   const { notify } = useAdminToast();
-  const isArchived = product?.publicationStatus === "archived";
+  const isArchived = product?.publicationStatus === PRODUCT_PUBLICATION_STATUS.ARCHIVED;
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<ProductValues>({ resolver: zodResolver(productFormSchema), defaultValues: defaults });
+  useEffect(() => {
+    services.admin.categories
+      .list()
+      .then(setCategories)
+      .catch(() => notify("Categories could not be loaded. Try again.", "error"));
+  }, [notify]);
   useEffect(() => {
     if (!productId) return;
     services.admin.products
@@ -59,7 +162,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
             name: item.name,
             slug: item.slug,
             description: item.description,
-            category: item.category,
+            category: item.categoryId ?? item.category,
             priceAmount: item.price.amount,
             sku: item.sku,
             stockQuantity: item.stockQuantity,
@@ -67,7 +170,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
             publicationStatus: item.publicationStatus,
             tags: item.tags.join(", "),
           });
-          setImages(item.images);
+          setImagePreview(item.images[0]?.url ?? "");
         }
       })
       .catch(() => {
@@ -75,32 +178,18 @@ export function ProductEditor({ productId }: { productId?: string }) {
         notify("Product could not be loaded. Try again.", "error");
       });
   }, [notify, productId, reset]);
-  const onFile = async (file?: File) => {
-    if (!file) return;
-    setIsUploading(true);
-    try {
-      const image = await services.admin.media.upload(file);
-      setImages((current) => [...current, { ...image, position: current.length }]);
-      notify("Image added.");
-    } catch {
-      notify("Image could not be uploaded. Try again.", "error");
-    } finally {
-      setIsUploading(false);
-    }
-  };
-  const removeImage = async () => {
-    if (!removeTarget) return;
-    setImages((current) => current.filter((image) => image.id !== removeTarget.id));
-    notify("Image removed.");
-    setRemoveTarget(null);
-  };
   const submit = async (values: ProductValues) => {
     setSaveError("");
+    if ((!productId || !product?.images.length) && !imageFile) {
+      setSaveError("Choose a product image before saving.");
+      return;
+    }
     const input: ProductInput = {
       name: values.name,
       slug: values.slug,
       description: values.description,
       category: values.category,
+      categoryId: values.category,
       price: { amount: values.priceAmount, currency: "IDR" },
       sku: values.sku,
       stockQuantity: values.stockQuantity,
@@ -110,7 +199,8 @@ export function ProductEditor({ productId }: { productId?: string }) {
         .split(",")
         .map((tag) => tag.trim())
         .filter(Boolean),
-      images,
+      images: product?.images ?? [],
+      imageFile: imageFile ?? undefined,
     };
     try {
       if (productId) await services.admin.products.update(productId, input);
@@ -118,7 +208,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
       notify(productId ? "Product updated." : "Product created.");
       router.push("/admin/products");
     } catch {
-      setSaveError("The mock service could not save this product. Try again.");
+      setSaveError("The product could not be saved. Try again.");
     }
   };
   if (product === undefined)
@@ -167,16 +257,17 @@ export function ProductEditor({ productId }: { productId?: string }) {
           <label>
             Category
             <select {...register("category")}>
+              <option value="">Choose a category</option>
               {product &&
-                !["pastries", "breads", "cakes", "sweets", "beverages", "gifts"].includes(
-                  product.category,
-                ) && <option value={product.category}>{product.category}</option>}
-              <option value="pastries">Pastries</option>
-              <option value="breads">Breads</option>
-              <option value="cakes">Cakes</option>
-              <option value="sweets">Sweets</option>
-              <option value="beverages">Beverages</option>
-              <option value="gifts">Gifts</option>
+                product.categoryId &&
+                !categories.some((category) => category.id === product.categoryId) && (
+                  <option value={product.categoryId}>{product.category}</option>
+                )}
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
             </select>
           </label>
           <label>
@@ -213,10 +304,8 @@ export function ProductEditor({ productId }: { productId?: string }) {
           <label>
             Publication
             <select {...register("publicationStatus")} disabled={isArchived}>
-              <option value="pending">Pending</option>
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              {isArchived && <option value="archived">Archived</option>}
+              <option value={PRODUCT_PUBLICATION_STATUS.ACTIVE}>Active</option>
+              <option value={PRODUCT_PUBLICATION_STATUS.ARCHIVED}>Archived</option>
             </select>
             {isArchived && (
               <span>Restore this product from the products list before publishing it.</span>
@@ -226,52 +315,57 @@ export function ProductEditor({ productId }: { productId?: string }) {
             Tags
             <input {...register("tags")} placeholder="seasonal, giftable" />
           </label>
+          <label className="admin-form-full">
+            Product image{!productId && " *"}
+            <input
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                if (file && file.size > 5 * 1024 * 1024) {
+                  setImageFile(null);
+                  setSaveError("Image must be 5 MB or smaller.");
+                  event.currentTarget.value = "";
+                  return;
+                }
+                if (file) {
+                  setSaveError("");
+                  setCropSource(URL.createObjectURL(file));
+                }
+              }}
+              required={!productId || !product?.images.length}
+              type="file"
+            />
+          </label>
         </div>
         <section className="admin-image-manager">
           <div>
             <h2>Product images</h2>
-            <p>
-              Temporary local previews only. The Go API will own uploads, ordering, and durable
-              URLs.
-            </p>
+            <p>{imageFile ? "New image selected." : "Existing image will be kept on edit."}</p>
           </div>
-          <label className={`admin-upload-button${isUploading ? " is-pending" : ""}`}>
-            {isUploading ? "Uploading..." : "Choose image"}
-            <input
-              accept="image/*"
-              disabled={isUploading}
-              onChange={(event) => onFile(event.target.files?.[0])}
-              type="file"
-            />
-          </label>
-          <div className="admin-image-list">
-            {images.map((image) => (
-              <figure key={image.id}>
-                <img alt={image.alt} src={image.url} />
-                <AdminButton
-                  aria-label={`Remove ${image.alt}`}
-                  onClick={() => setRemoveTarget(image)}
-                  type="button"
-                  variant="destructive"
-                >
-                  <Trash aria-hidden="true" size={18} />
-                </AdminButton>
+          {imagePreview ? (
+            <div className="admin-image-list">
+              <figure>
+                <img alt="Product preview" src={imagePreview} />
               </figure>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <p className="admin-data-loading">No product image selected.</p>
+          )}
         </section>
         {saveError && <p className="admin-form-alert">{saveError}</p>}
         <AdminButton isLoading={isSubmitting} loadingLabel="Saving..." type="submit">
           {productId ? "Save product" : "Create product"}
         </AdminButton>
       </form>
-      {removeTarget && (
-        <AdminConfirmDialog
-          confirmLabel="Remove image"
-          description="This removes the image from this product. Save the product to persist the change."
-          onCancel={() => setRemoveTarget(null)}
-          onConfirm={removeImage}
-          title="Remove this image?"
+      {cropSource && (
+        <ImageCropDialog
+          onApply={async (file) => {
+            setImageFile(file);
+            setImagePreview(URL.createObjectURL(file));
+            setCropSource("");
+          }}
+          onCancel={() => setCropSource("")}
+          source={cropSource}
         />
       )}
     </div>

@@ -1,5 +1,5 @@
 import type { ProductService } from "@/lib/api/contracts/product-service";
-import type { Product } from "@/lib/types/commerce";
+import type { Product, ProductDetail } from "@/lib/types/commerce";
 
 export const pastryProducts: Product[] = [
   {
@@ -73,5 +73,23 @@ export const mockProductService: ProductService = {
   },
   async getFreshToday(): Promise<Product[]> {
     return pastryProducts.slice(1, 5);
+  },
+  async getBySlug(slug): Promise<ProductDetail | null> {
+    const product = pastryProducts.find((item) => item.slug === slug);
+    if (!product) return null;
+    return {
+      id: product.id,
+      slug: product.slug,
+      name: product.name,
+      description: product.shortDescription,
+      category: product.category,
+      price: { amount: product.price.amount, currency: "IDR" },
+      sku: `${product.slug.toUpperCase()}-001`,
+      quantity: product.availability === "sold_out" ? 0 : 10,
+      availability: product.availability,
+      publicationStatus: "active",
+      tags: product.tags,
+      imageUrl: product.imageUrl,
+    };
   },
 };

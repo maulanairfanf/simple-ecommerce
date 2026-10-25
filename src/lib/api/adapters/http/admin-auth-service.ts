@@ -24,7 +24,7 @@ function getTokenClaims(token: string): TokenClaims {
 
 export const httpAdminAuthService: AdminAuthService = {
   async login({ username, password }) {
-    const response = await request<LoginResponse>("/login", {
+    const response = await request<LoginResponse>("/admin/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),

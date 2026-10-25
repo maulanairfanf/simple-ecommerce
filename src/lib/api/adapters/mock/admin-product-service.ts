@@ -1,5 +1,6 @@
 import type { AdminProductService } from "@/lib/api/contracts/admin-product-service";
 import { adminProducts } from "@/lib/api/adapters/mock/admin-data";
+import { PRODUCT_PUBLICATION_STATUS } from "@/lib/types/admin";
 
 export const mockAdminProductService: AdminProductService = {
   async list(query = {}) {
@@ -46,10 +47,10 @@ export const mockAdminProductService: AdminProductService = {
     const index = adminProducts.findIndex((product) => product.id === id);
     if (index < 0) throw new Error("Product not found");
     if (
-      (adminProducts[index].publicationStatus === "archived" &&
-        input.publicationStatus !== "archived") ||
-      (adminProducts[index].publicationStatus !== "archived" &&
-        input.publicationStatus === "archived")
+      (adminProducts[index].publicationStatus === PRODUCT_PUBLICATION_STATUS.ARCHIVED &&
+        input.publicationStatus !== PRODUCT_PUBLICATION_STATUS.ARCHIVED) ||
+      (adminProducts[index].publicationStatus !== PRODUCT_PUBLICATION_STATUS.ARCHIVED &&
+        input.publicationStatus === PRODUCT_PUBLICATION_STATUS.ARCHIVED)
     ) {
       throw new Error("Use the archive or unarchive action to change archived status");
     }
@@ -60,13 +61,18 @@ export const mockAdminProductService: AdminProductService = {
   async archive(id) {
     const product = adminProducts.find((item) => item.id === id);
     if (!product) throw new Error("Product not found");
-    product.publicationStatus = "archived";
+    product.publicationStatus = PRODUCT_PUBLICATION_STATUS.ARCHIVED;
     product.updatedAt = new Date().toISOString();
   },
   async unarchive(id) {
     const product = adminProducts.find((item) => item.id === id);
     if (!product) throw new Error("Product not found");
-    product.publicationStatus = "draft";
+    product.publicationStatus = PRODUCT_PUBLICATION_STATUS.ACTIVE;
     product.updatedAt = new Date().toISOString();
+  },
+  async delete(id) {
+    const index = adminProducts.findIndex((product) => product.id === id);
+    if (index < 0) throw new Error("Product not found");
+    adminProducts.splice(index, 1);
   },
 };

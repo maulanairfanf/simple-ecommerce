@@ -1,16 +1,17 @@
 import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import Image from "next/image";
+import Link from "next/link";
 import { PhotoPlaceholder } from "@/components/photo-placeholder";
 import { ProductCard } from "@/components/product-card";
 import { SiteHeader } from "@/components/site-header";
 import { services } from "@/lib/api";
 
 export default async function HomePage() {
-  const [featured, freshToday, categories] = await Promise.all([
+  const [featured, freshToday] = await Promise.all([
     services.products.getFeatured(),
     services.products.getFreshToday(),
-    services.categories.getAll(),
   ]);
+  const categories = await services.categories.getAll().catch(() => []);
 
   return (
     <main id="top">
@@ -30,9 +31,9 @@ export default async function HomePage() {
           <p className="hero-summary">
             Thoughtfully baked pastries, delightful cakes, and little moments worth sharing.
           </p>
-          <a className="button button-primary" href="/shop">
+          <Link className="button button-primary" href="/shop">
             Explore Our Bakes <ArrowRight aria-hidden="true" size={18} />
-          </a>
+          </Link>
         </div>
         <div className="hero-photo hero-photo-large">
           <PhotoPlaceholder
@@ -63,9 +64,9 @@ export default async function HomePage() {
             <p className="section-label">Fresh today</p>
             <h2 id="featured-title">Baked with care, made for sharing.</h2>
           </div>
-          <a className="text-link" href="/shop">
+          <Link className="text-link" href="/shop">
             See all bakes <ArrowRight aria-hidden="true" size={18} />
-          </a>
+          </Link>
         </div>
         <div className="product-grid">
           {featured.map((product) => (
@@ -152,9 +153,9 @@ export default async function HomePage() {
             Seasonal pastries, wrapped up for the next gathering, thoughtful thank-you, or ordinary
             Tuesday worth making sweeter.
           </p>
-          <a className="button button-primary" href="/shop">
+          <Link className="button button-primary" href="/shop">
             Browse the counter <ArrowRight aria-hidden="true" size={18} />
-          </a>
+          </Link>
         </div>
         <div className="seasonal-art">
           <Image alt="Daily Crumb monogram" height={1400} src="/third-logo.png" width={1400} />

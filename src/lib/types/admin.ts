@@ -7,8 +7,18 @@ export type AdminPermission =
   | "inventory:adjust"
   | "orders:read"
   | "orders:fulfillment";
-export type ProductPublicationStatus = "pending" | "draft" | "active" | "archived";
-export type CategoryStatus = "active" | "inactive";
+export const PRODUCT_PUBLICATION_STATUS = {
+  ACTIVE: "active",
+  ARCHIVED: "archived",
+} as const;
+export type ProductPublicationStatus =
+  (typeof PRODUCT_PUBLICATION_STATUS)[keyof typeof PRODUCT_PUBLICATION_STATUS];
+
+export const CATEGORY_STATUS = {
+  ACTIVE: "active",
+  INACTIVE: "inactive",
+} as const;
+export type CategoryStatus = (typeof CATEGORY_STATUS)[keyof typeof CATEGORY_STATUS];
 export type AdminMoney = { amount: number; currency: "IDR" };
 
 export type AdminSession = {
@@ -25,6 +35,7 @@ export type AdminProduct = {
   slug: string;
   description: string;
   category: string;
+  categoryId?: string;
   price: AdminMoney;
   sku: string;
   stockQuantity: number;
@@ -62,5 +73,5 @@ export type AdminDashboard = {
   }>;
 };
 
-export type ProductInput = Omit<AdminProduct, "id" | "updatedAt">;
+export type ProductInput = Omit<AdminProduct, "id" | "updatedAt"> & { imageFile?: File };
 export type CategoryInput = Pick<AdminCategory, "name" | "slug" | "status">;
