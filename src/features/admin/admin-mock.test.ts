@@ -7,21 +7,19 @@ import { productFormSchema } from "@/features/admin/products/product-schema";
 
 describe("admin frontend mocks", () => {
   it("validates login input before the mock session is created", () => {
-    expect(adminLoginSchema.safeParse({ email: "not-an-email", password: "short" }).success).toBe(
-      false,
+    expect(adminLoginSchema.safeParse({ username: "", password: "short" }).success).toBe(false);
+    expect(adminLoginSchema.safeParse({ username: "admin", password: "eightchars" }).success).toBe(
+      true,
     );
-    expect(
-      adminLoginSchema.safeParse({ email: "admin@example.com", password: "eightchars" }).success,
-    ).toBe(true);
   });
 
-  it("creates a development-only session without a token field", async () => {
+  it("creates a development-only session", async () => {
     const session = await mockAdminAuthService.login({
-      email: "admin@example.com",
+      username: "admin",
       password: "eightchars",
     });
     expect(session.admin.permissions).toContain("products:write");
-    expect("accessToken" in session).toBe(false);
+    expect(session.token).toBe("mock-admin-token");
   });
 
   it("rejects invalid product form values", () => {
@@ -64,40 +62,27 @@ describe("admin frontend mocks", () => {
     expect((await mockAdminProductService.getById(product.id))?.publicationStatus).toBe("draft");
   });
 
-  it("blocks archival of a category that still has products", async () => {
-    await expect(mockAdminCategoryService.archive("cat_pastries")).rejects.toThrow(
-      "Move products before archiving",
-    );
-  });
-
-  it("archives then restores an empty category", async () => {
+  it("updates a category status", async () => {
     const category = await mockAdminCategoryService.create({
       name: "Test category",
       slug: `test-category-${Date.now()}`,
-      description: "A category used to verify archive and unarchive behavior.",
-      imageUrl: undefined,
-      active: true,
+      status: "active",
     });
-    await mockAdminCategoryService.archive(category.id);
+    await mockAdminCategoryService.update(category.id, { ...category, status: "inactive" });
     expect(
-      (await mockAdminCategoryService.list()).find((item) => item.id === category.id)?.active,
-    ).toBe(false);
-    await mockAdminCategoryService.unarchive(category.id);
-    expect(
-      (await mockAdminCategoryService.list()).find((item) => item.id === category.id)?.active,
-    ).toBe(true);
+      (await mockAdminCategoryService.list()).find((item) => item.id === category.id)?.status,
+    ).toBe("inactive");
   });
 
-  it("requires category status changes to use archive actions", async () => {
+  it("deletes a category", async () => {
     const category = await mockAdminCategoryService.create({
-      name: "Lifecycle category",
-      slug: `lifecycle-category-${Date.now()}`,
-      description: "A category used to verify lifecycle protections.",
-      imageUrl: undefined,
-      active: true,
+      name: "Delete category",
+      slug: `delete-category-${Date.now()}`,
+      status: "active",
     });
-    await expect(
-      mockAdminCategoryService.update(category.id, { ...category, active: false }),
-    ).rejects.toThrow("archive or unarchive");
+    await mockAdminCategoryService.delete(category.id);
+    expect((await mockAdminCategoryService.list()).some((item) => item.id === category.id)).toBe(
+      false,
+    );
   });
 });

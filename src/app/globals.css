@@ -1040,6 +1040,7 @@ h2 {
 .admin-product-form select,
 .admin-category-form input,
 .admin-category-form textarea,
+.admin-category-form select,
 .admin-toolbar input,
 .admin-toolbar select {
   background: var(--cream);
@@ -1062,6 +1063,7 @@ h2 {
 .admin-product-form select:focus,
 .admin-category-form input:focus,
 .admin-category-form textarea:focus,
+.admin-category-form select:focus,
 .admin-toolbar input:focus,
 .admin-toolbar select:focus {
   outline: 3px solid var(--butter);
@@ -1453,11 +1455,13 @@ h2 {
 .admin-button-secondary:hover:not(:disabled) {
   background: var(--daily-beige);
 }
-.admin-button-danger {
+.admin-button-danger,
+.admin-button-destructive {
   background: var(--daily-danger);
   color: var(--daily-cream-raised);
 }
-.admin-button-danger:hover:not(:disabled) {
+.admin-button-danger:hover:not(:disabled),
+.admin-button-destructive:hover:not(:disabled) {
   background: var(--daily-danger-hover);
 }
 .admin-button-text {
@@ -2045,6 +2049,7 @@ html {
 .admin-product-form select,
 .admin-category-form input,
 .admin-category-form textarea,
+.admin-category-form select,
 .admin-toolbar input,
 .admin-toolbar select {
   background: #fffaf4;
@@ -2057,6 +2062,7 @@ html {
 .admin-product-form select:focus,
 .admin-category-form input:focus,
 .admin-category-form textarea:focus,
+.admin-category-form select:focus,
 .admin-toolbar input:focus,
 .admin-toolbar select:focus {
   outline-color: #7a3f46;

@@ -4,11 +4,11 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { services } from "@/lib/api";
 import type { AdminSession } from "@/lib/types/admin";
 
-const sessionKey = "jam-window-admin-mock-session";
+const sessionKey = "daily-crumb-admin-session";
 type SessionContextValue = {
   session: AdminSession | null;
   ready: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -33,8 +33,8 @@ export function AdminSessionProvider({ children }: { children: ReactNode }) {
   const value: SessionContextValue = {
     session,
     ready,
-    async login(email, password) {
-      const nextSession = await services.admin.auth.login({ email, password });
+    async login(username, password) {
+      const nextSession = await services.admin.auth.login({ username, password });
       window.sessionStorage.setItem(sessionKey, JSON.stringify(nextSession));
       setSession(nextSession);
     },

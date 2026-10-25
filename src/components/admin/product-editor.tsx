@@ -167,6 +167,10 @@ export function ProductEditor({ productId }: { productId?: string }) {
           <label>
             Category
             <select {...register("category")}>
+              {product &&
+                !["pastries", "breads", "cakes", "sweets", "beverages", "gifts"].includes(
+                  product.category,
+                ) && <option value={product.category}>{product.category}</option>}
               <option value="pastries">Pastries</option>
               <option value="breads">Breads</option>
               <option value="cakes">Cakes</option>
@@ -209,6 +213,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
           <label>
             Publication
             <select {...register("publicationStatus")} disabled={isArchived}>
+              <option value="pending">Pending</option>
               <option value="draft">Draft</option>
               <option value="active">Active</option>
               {isArchived && <option value="archived">Archived</option>}
@@ -247,7 +252,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
                   aria-label={`Remove ${image.alt}`}
                   onClick={() => setRemoveTarget(image)}
                   type="button"
-                  variant="danger"
+                  variant="destructive"
                 >
                   <Trash aria-hidden="true" size={18} />
                 </AdminButton>

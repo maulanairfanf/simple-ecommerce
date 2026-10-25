@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Archive, ArrowCounterClockwise, PencilSimple, Plus } from "@phosphor-icons/react";
+import { Archive, ArrowCounterClockwise, PencilSimple, Plus, Trash } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -16,17 +16,15 @@ const schema = z.object({
   slug: z
     .string()
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens."),
-  description: z.string().min(8, "Description needs at least 8 characters."),
-  imageUrl: z.string().url("Enter a valid image URL.").or(z.literal("")),
+  status: z.enum(["active", "inactive"]),
 });
 type Values = z.infer<typeof schema>;
-const defaults: Values = { name: "", slug: "", description: "", imageUrl: "" };
+const defaults: Values = { name: "", slug: "", status: "active" };
 
 export function CategoryManager() {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [editing, setEditing] = useState<AdminCategory | null>(null);
-  const [archiveTarget, setArchiveTarget] = useState<AdminCategory | null>(null);
-  const [unarchiveTarget, setUnarchiveTarget] = useState<AdminCategory | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminCategory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const { notify } = useAdminToast();
@@ -59,19 +57,13 @@ export function CategoryManager() {
     reset({
       name: category.name,
       slug: category.slug,
-      description: category.description,
-      imageUrl: category.imageUrl ?? "",
+      status: category.status,
     });
   };
   const submit = async (values: Values) => {
-    const input = {
-      ...values,
-      active: editing ? editing.active : true,
-      imageUrl: values.imageUrl || undefined,
-    };
     try {
-      if (editing) await services.admin.categories.update(editing.id, input);
-      else await services.admin.categories.create(input);
+      if (editing) await services.admin.categories.update(editing.id, values);
+      else await services.admin.categories.create(values);
       reset(defaults);
       setEditing(null);
       notify("Category saved.");
@@ -80,19 +72,30 @@ export function CategoryManager() {
       notify("Category could not be saved. Try again.", "error");
     }
   };
-  const archive = async () => {
-    if (!archiveTarget) return;
-    await services.admin.categories.archive(archiveTarget.id);
-    notify(`${archiveTarget.name} was archived.`);
-    setArchiveTarget(null);
-    setRefreshKey((current) => current + 1);
+  const remove = async () => {
+    if (!deleteTarget) return;
+    try {
+      await services.admin.categories.delete(deleteTarget.id);
+      notify(`${deleteTarget.name} was deleted.`);
+      setDeleteTarget(null);
+      setRefreshKey((current) => current + 1);
+    } catch {
+      notify("Category could not be deleted. Try again.", "error");
+    }
   };
-  const unarchive = async () => {
-    if (!unarchiveTarget) return;
-    await services.admin.categories.unarchive(unarchiveTarget.id);
-    notify(`${unarchiveTarget.name} was restored.`);
-    setUnarchiveTarget(null);
-    setRefreshKey((current) => current + 1);
+  const changeStatus = async (category: AdminCategory) => {
+    const status = category.status === "active" ? "inactive" : "active";
+    try {
+      await services.admin.categories.update(category.id, {
+        name: category.name,
+        slug: category.slug,
+        status,
+      });
+      notify(`${category.name} was ${status === "active" ? "unarchived" : "archived"}.`);
+      setRefreshKey((current) => current + 1);
+    } catch {
+      notify("Category status could not be updated. Try again.", "error");
+    }
   };
   return (
     <div className="admin-page">
@@ -101,7 +104,10 @@ export function CategoryManager() {
           <p className="admin-eyebrow">Categories</p>
           <h1>Keep the counter clear.</h1>
         </div>
-        <p>Archive only empty categories. Your Go backend will enforce reassignment rules.</p>
+        <p>
+          Set a category inactive to keep it out of new use, or delete it when it is no longer
+          needed.
+        </p>
       </div>
       <div className="admin-two-column">
         <section className="admin-table-wrap">
@@ -110,11 +116,15 @@ export function CategoryManager() {
               Loading categories...
             </p>
           )}
+          {!isLoading && categories.length === 0 && (
+            <p className="admin-data-loading">
+              No categories yet. Create one to organize products.
+            </p>
+          )}
           <table>
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Products</th>
                 <th>Status</th>
                 <th>
                   <span className="sr-only">Actions</span>
@@ -128,12 +138,11 @@ export function CategoryManager() {
                     <strong>{category.name}</strong>
                     <small>/{category.slug}</small>
                   </td>
-                  <td>{category.productCount}</td>
                   <td>
                     <span
-                      className={`admin-status ${category.active ? "status-active" : "status-archived"}`}
+                      className={`admin-status ${category.status === "active" ? "status-active" : "status-archived"}`}
                     >
-                      {category.active ? "active" : "archived"}
+                      {category.status}
                     </span>
                   </td>
                   <td>
@@ -141,23 +150,28 @@ export function CategoryManager() {
                       <AdminButton onClick={() => edit(category)} type="button" variant="text">
                         <PencilSimple aria-hidden="true" size={16} /> Edit
                       </AdminButton>
-                      {category.active ? (
-                        <AdminButton
-                          onClick={() => setArchiveTarget(category)}
-                          type="button"
-                          variant="text"
-                        >
-                          <Archive aria-hidden="true" size={16} /> Archive
-                        </AdminButton>
-                      ) : (
-                        <AdminButton
-                          onClick={() => setUnarchiveTarget(category)}
-                          type="button"
-                          variant="text"
-                        >
-                          <ArrowCounterClockwise aria-hidden="true" size={16} /> Unarchive
-                        </AdminButton>
-                      )}
+                      <AdminButton
+                        onClick={() => void changeStatus(category)}
+                        type="button"
+                        variant="text"
+                      >
+                        {category.status === "active" ? (
+                          <>
+                            <Archive aria-hidden="true" size={16} /> Archive
+                          </>
+                        ) : (
+                          <>
+                            <ArrowCounterClockwise aria-hidden="true" size={16} /> Unarchive
+                          </>
+                        )}
+                      </AdminButton>
+                      <AdminButton
+                        onClick={() => setDeleteTarget(category)}
+                        type="button"
+                        variant="destructive"
+                      >
+                        <Trash aria-hidden="true" size={16} /> Delete
+                      </AdminButton>
                     </AdminActionGroup>
                   </td>
                 </tr>
@@ -181,13 +195,12 @@ export function CategoryManager() {
             {errors.slug && <span>{errors.slug.message}</span>}
           </label>
           <label>
-            Description
-            <textarea {...register("description")} rows={3} />
-            {errors.description && <span>{errors.description.message}</span>}
-          </label>
-          <label>
-            Image URL <input {...register("imageUrl")} />
-            {errors.imageUrl && <span>{errors.imageUrl.message}</span>}
+            Status
+            <select {...register("status")}>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            {errors.status && <span>{errors.status.message}</span>}
           </label>
           <AdminActionGroup>
             <AdminButton
@@ -213,22 +226,13 @@ export function CategoryManager() {
           </AdminActionGroup>
         </form>
       </div>
-      {archiveTarget && (
+      {deleteTarget && (
         <AdminConfirmDialog
-          confirmLabel="Archive category"
-          description="Products must be moved first. This category will no longer be available for new products."
-          onCancel={() => setArchiveTarget(null)}
-          onConfirm={archive}
-          title={`Archive ${archiveTarget.name}?`}
-        />
-      )}
-      {unarchiveTarget && (
-        <AdminConfirmDialog
-          confirmLabel="Unarchive category"
-          description="This category will become available for new products again."
-          onCancel={() => setUnarchiveTarget(null)}
-          onConfirm={unarchive}
-          title={`Unarchive ${unarchiveTarget.name}?`}
+          confirmLabel="Delete category"
+          description="This permanently removes the category. Set it inactive instead if you may need it later."
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={remove}
+          title={`Delete ${deleteTarget.name}?`}
         />
       )}
     </div>

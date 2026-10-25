@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { forwardRef, type ButtonHTMLAttributes, type ComponentProps, type ReactNode } from "react";
 
-type AdminActionVariant = "primary" | "secondary" | "danger" | "text";
+type AdminActionVariant = "primary" | "secondary" | "danger" | "destructive" | "text";
 
 type AdminButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
@@ -12,7 +12,7 @@ type AdminButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 type AdminActionLinkProps = ComponentProps<typeof Link> & {
   children: ReactNode;
-  variant?: Exclude<AdminActionVariant, "danger">;
+  variant?: Exclude<AdminActionVariant, "danger" | "destructive">;
 };
 
 export const AdminButton = forwardRef<HTMLButtonElement, AdminButtonProps>(function AdminButton(

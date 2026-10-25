@@ -6,6 +6,7 @@ import {
   MagnifyingGlass,
   PencilSimple,
   Plus,
+  Trash,
 } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { AdminActionGroup, AdminActionLink, AdminButton } from "@/components/admin/admin-action";
@@ -13,7 +14,7 @@ import { AdminConfirmDialog } from "@/components/admin/admin-confirm-dialog";
 import { useAdminToast } from "@/components/admin/admin-toast";
 import { services } from "@/lib/api";
 import type { AdminProduct, ProductPublicationStatus } from "@/lib/types/admin";
-import type { Availability, ProductCategory } from "@/lib/types/commerce";
+import type { Availability } from "@/lib/types/commerce";
 
 export function ProductManager({
   initialAvailability = "all",
@@ -23,10 +24,11 @@ export function ProductManager({
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<ProductPublicationStatus | "all">("all");
-  const [category, setCategory] = useState<ProductCategory | "all">("all");
+  const [category, setCategory] = useState<string | "all">("all");
   const [availability, setAvailability] = useState<Availability | "all">(initialAvailability);
   const [archiveTarget, setArchiveTarget] = useState<AdminProduct | null>(null);
   const [unarchiveTarget, setUnarchiveTarget] = useState<AdminProduct | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminProduct | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const { notify } = useAdminToast();
@@ -69,6 +71,12 @@ export function ProductManager({
     setUnarchiveTarget(null);
     setRefreshKey((current) => current + 1);
   };
+  const remove = async () => {
+    if (!deleteTarget) return;
+    setProducts((current) => current.filter((product) => product.id !== deleteTarget.id));
+    notify(`${deleteTarget.name} was deleted.`);
+    setDeleteTarget(null);
+  };
   return (
     <div className="admin-page">
       <div className="admin-page-heading">
@@ -92,10 +100,7 @@ export function ProductManager({
         </label>
         <label>
           Category
-          <select
-            onChange={(event) => setCategory(event.target.value as ProductCategory | "all")}
-            value={category}
-          >
+          <select onChange={(event) => setCategory(event.target.value)} value={category}>
             <option value="all">All categories</option>
             <option value="pastries">Pastries</option>
             <option value="breads">Breads</option>
@@ -113,6 +118,7 @@ export function ProductManager({
           >
             <option value="all">All statuses</option>
             <option value="active">Active</option>
+            <option value="pending">Pending</option>
             <option value="draft">Draft</option>
             <option value="archived">Archived</option>
           </select>
@@ -196,6 +202,13 @@ export function ProductManager({
                         <Archive aria-hidden="true" size={16} /> Archive
                       </AdminButton>
                     )}
+                    <AdminButton
+                      onClick={() => setDeleteTarget(product)}
+                      type="button"
+                      variant="destructive"
+                    >
+                      <Trash aria-hidden="true" size={16} /> Delete
+                    </AdminButton>
                   </AdminActionGroup>
                 </td>
               </tr>
@@ -236,6 +249,15 @@ export function ProductManager({
           onCancel={() => setUnarchiveTarget(null)}
           onConfirm={unarchive}
           title={`Unarchive ${unarchiveTarget.name}?`}
+        />
+      )}
+      {deleteTarget && (
+        <AdminConfirmDialog
+          confirmLabel="Delete product"
+          description="This permanently removes the product. Archive it instead if you may need it later."
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={remove}
+          title={`Delete ${deleteTarget.name}?`}
         />
       )}
     </div>

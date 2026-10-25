@@ -4,6 +4,5 @@ export interface AdminCategoryService {
   list(): Promise<AdminCategory[]>;
   create(input: CategoryInput): Promise<AdminCategory>;
   update(id: string, input: CategoryInput): Promise<AdminCategory>;
-  archive(id: string): Promise<void>;
-  unarchive(id: string): Promise<void>;
+  delete(id: string): Promise<void>;
 }

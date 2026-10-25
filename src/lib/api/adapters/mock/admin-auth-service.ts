@@ -1,12 +1,13 @@
 import type { AdminAuthService } from "@/lib/api/contracts/admin-auth-service";
 
 export const mockAdminAuthService: AdminAuthService = {
-  async login({ email }) {
+  async login({ username }) {
     return {
+      token: "mock-admin-token",
       admin: {
         id: "dev_admin",
         name: "Development Admin",
-        email,
+        username,
         permissions: [
           "products:read",
           "products:write",

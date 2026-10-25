@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const adminLoginSchema = z.object({
-  email: z.string().email("Enter a valid work email."),
+  username: z.string().min(1, "Enter your username."),
   password: z.string().min(8, "Password must contain at least 8 characters."),
 });
 

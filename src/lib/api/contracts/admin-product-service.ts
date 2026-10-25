@@ -4,11 +4,11 @@ import type {
   ProductInput,
   ProductPublicationStatus,
 } from "@/lib/types/admin";
-import type { Availability, ProductCategory } from "@/lib/types/commerce";
+import type { Availability } from "@/lib/types/commerce";
 
 export type AdminProductQuery = {
   q?: string;
-  category?: ProductCategory;
+  category?: string;
   availability?: Availability;
   status?: ProductPublicationStatus;
   sort?: "updated" | "price-low" | "price-high";

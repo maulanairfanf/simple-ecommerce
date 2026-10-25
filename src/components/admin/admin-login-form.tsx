@@ -19,35 +19,43 @@ function LoginForm() {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<LoginValues>({ resolver: zodResolver(adminLoginSchema) });
   const submit = async (values: LoginValues) => {
-    await login(values.email, values.password);
-    router.replace("/admin");
+    try {
+      await login(values.username, values.password);
+      router.replace("/admin");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Sign-in failed. Try again.";
+      setError("root", { message });
+    }
   };
   return (
     <form className="admin-login-form" onSubmit={handleSubmit(submit)} noValidate>
       <div>
         <p className="admin-eyebrow">Staff access</p>
         <h1>Keep the counter moving.</h1>
-        <p>
-          Development-only mock sign-in. The Go backend will replace this with a secure server
-          session.
-        </p>
+        <p>Use your staff username and password to access the shop administration.</p>
       </div>
       {params.get("reason") === "expired" && (
         <p className="admin-form-alert">Your admin session expired. Sign in again to continue.</p>
       )}
       <label>
-        Email
-        <input autoComplete="email" {...register("email")} type="email" />
-        {errors.email && <span>{errors.email.message}</span>}
+        Username
+        <input autoComplete="username" {...register("username")} />
+        {errors.username && <span>{errors.username.message}</span>}
       </label>
       <label>
         Password
         <input autoComplete="current-password" {...register("password")} type="password" />
         {errors.password && <span>{errors.password.message}</span>}
       </label>
+      {errors.root && (
+        <p className="admin-form-alert" role="alert">
+          {errors.root.message}
+        </p>
+      )}
       <AdminButton isLoading={isSubmitting} loadingLabel="Signing in..." type="submit">
         Sign in to admin
       </AdminButton>

@@ -65,7 +65,7 @@ export function AdminConfirmDialog({
             loadingLabel="Working..."
             onClick={confirm}
             type="button"
-            variant="danger"
+            variant="destructive"
           >
             {confirmLabel}
           </AdminButton>

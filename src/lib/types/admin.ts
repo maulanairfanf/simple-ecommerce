@@ -1,4 +1,4 @@
-import type { Availability, ProductCategory } from "@/lib/types/commerce";
+import type { Availability } from "@/lib/types/commerce";
 
 export type AdminPermission =
   | "products:read"
@@ -7,11 +7,13 @@ export type AdminPermission =
   | "inventory:adjust"
   | "orders:read"
   | "orders:fulfillment";
-export type ProductPublicationStatus = "draft" | "active" | "archived";
+export type ProductPublicationStatus = "pending" | "draft" | "active" | "archived";
+export type CategoryStatus = "active" | "inactive";
 export type AdminMoney = { amount: number; currency: "IDR" };
 
 export type AdminSession = {
-  admin: { id: string; name: string; email: string; permissions: AdminPermission[] };
+  token: string;
+  admin: { id: string; name: string; username: string; permissions: AdminPermission[] };
   expiresAt: string;
 };
 
@@ -22,7 +24,7 @@ export type AdminProduct = {
   name: string;
   slug: string;
   description: string;
-  category: ProductCategory;
+  category: string;
   price: AdminMoney;
   sku: string;
   stockQuantity: number;
@@ -37,10 +39,9 @@ export type AdminCategory = {
   id: string;
   name: string;
   slug: string;
-  description: string;
-  imageUrl?: string;
-  active: boolean;
-  productCount: number;
+  status: CategoryStatus;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type Pagination = { page: number; pageSize: number; total: number; totalPages: number };
@@ -62,4 +63,4 @@ export type AdminDashboard = {
 };
 
 export type ProductInput = Omit<AdminProduct, "id" | "updatedAt">;
-export type CategoryInput = Omit<AdminCategory, "id" | "productCount">;
+export type CategoryInput = Pick<AdminCategory, "name" | "slug" | "status">;
